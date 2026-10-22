@@ -40,4 +40,4 @@ lucide 是**描边型**图标（`fill="none"` + `stroke`），ArkUI 的 `fillCol
 - `color` 支持 `Color.Black` / `'#FF6699'` / `$r('app.color.xxx')` 等 `ResourceColor`
 - 颜色作用在描边上，与 svg 里 `stroke` 的字面值无关
 
-[GitHub地址](https://github.com/shenapps/octicons-harmony)
+[GitHub地址](https://github.com/shenapps/icons-harmony)
