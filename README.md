@@ -10,8 +10,8 @@
 ## publish
 
 ```shell
-ohpm publish /Users/shen/DevecostudioProjects/octicons-harmony/octicons/build/default/outputs/default/octicons.har
-ohpm publish /Users/shen/DevecostudioProjects/octicons-harmony/lucide/build/default/outputs/default/lucide.har
+ohpm publish /Users/shen/DevecostudioProjects/icons-harmony/octicons/build/default/outputs/default/octicons.har
+ohpm publish /Users/shen/DevecostudioProjects/icons-harmony/lucide/build/default/outputs/default/lucide.har
 ```
 
 ## 同步官方图标
