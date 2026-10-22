@@ -1,7 +1,7 @@
 # octicons
 
 
-> 在项目中使用 [octicons](https://github.com/primer/octicons) 图标
+> 在项目中使用 [octicons](https://primer.style/octicons) 图标
 
 > 已同步 `v19.41.0` 版本
 

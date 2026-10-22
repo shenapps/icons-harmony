@@ -1,6 +1,9 @@
-# AGENTS.md — @isfk/octicons
+# AGENTS.md — icons-harmony
 
-把 Primer 官方 [octicons](https://github.com/primer/octicons) 的 24px SVG 同步进 HAR 资源，对外提供 `OctIcon` 组件 + 图标名常量。
+本仓把上游官方 SVG 同步进 HAR 资源，产出两个独立 ohpm 包：`@isfk/octicons`（`OctIcon`，填充型 24px）与 `@isfk/lucide`（`LucideIcon`，描边型 24×24）。
+
+**这份文件是 agent 的操作手册**：维护流程、构建验收、发布、约定、排错都在这里。
+面向使用者的文档是 `README.md`（仓库门面：包一览 / 安装 / 用法）和 `<模块>/README.md`（随 HAR 发布到 ohpm）——那两份不写流程细节；反过来这里也不写安装用法。改文档时守住这条分工线。
 
 ## 触发词：更新版本
 
@@ -32,9 +35,9 @@
    gunzip -c octicons/build/default/outputs/default/octicons.har > /tmp/o.har.tar
    tar -tf /tmp/o.har.tar | grep -c 'base/media/.*\.svg$'              # == Index.ets 常量数
    tar -tf /tmp/o.har.tar | grep -cE '\.DS_Store|sourceMaps\.map'       # == 0
-   tar -xOf /tmp/o.har.tar package/oh-package.json5                    # 版本号是新版、debug:false
+   tar -xOf /tmp/o.har.tar package/oh-package.json5                    # 版本号是新版、debug:false、repository 是本仓地址
    ```
-   完成标准：svg 数量与常量数相等、新图标 0 缺失、无 macOS 垃圾与 sourcemap、包内版本号是新版。
+   完成标准：svg 数量与常量数相等、新图标 0 缺失、无 macOS 垃圾与 sourcemap、包内版本号是新版、`repository` 是 `https://github.com/shenapps/icons-harmony`。
 7. **发布** — 先自检，**再**发布：
    `node scripts/check-publish-env.mjs`
    完成标准：退出码 `0` → 直接 `ohpm publish`（`key_passphrase` 已配置，agent 可免交互发布）。
@@ -50,10 +53,34 @@
    目标版本已在 registry 上时**先改版本号**，ohpm 不能覆盖已发布版本。
 8. **汇报** — 列出改了什么、HAR 的 `shasum -a 256`、以及 commit 信息建议（不提交）。
 
+## 同步脚本速查
+
+两个脚本选项几乎一致（lucide 没有 `--size`，固定 24），完整清单看 `node scripts/sync-<集>.mjs --help`：
+
+| 选项 | 说明 |
+| --- | --- |
+| `-v, --version <x.y.z>` | 指定上游版本，默认取 registry latest |
+| `--size <n>` | 图标尺寸，默认 24（octicons 可选 12 / 16 / 24） |
+| `--dry-run` | 只汇报差异，不改动项目文件（仅写 tarball 缓存） |
+| `--check` | 有差异时退出码 `2`，无差异 `0` |
+| `--prune` | 删掉上游已移除的本地图标（默认只提示不删） |
+| `--from-tarball <p>` / `--from-dir <p>` | 离线：读本地 `.tgz` 或已解压目录 |
+| `--refresh` | 忽略缓存重新下载（缓存 `.octicons-cache/`、`.lucide-cache/`，已 gitignore） |
+| `--proxy <url>` / `--downloader curl` | 直连不通时走代理；`curl` 天然尊重 `http_proxy` / `socks5` 等环境变量 |
+| `--timeout <sec>` | 单次网络超时，默认 30 |
+| `--media-dir` / `--index` / `--readme` | 覆盖默认输出路径，本仓一般不用 |
+| `--no-index` / `--no-readme` | 不重生成 `Index.ets` / 不改 README 版本号 |
+| `--sanitize` | 应急备用，**本仓不用**：去掉 `fill="currentColor"` / 根节点 `fill="none"` |
+| `--json` / `-q` | JSON 输出 / 只输出错误 |
+
+退出码：`0` 正常、`1` 出错、`2` `--check` 发现差异。
+
 ## 约定
 
 - **图标与 `Index.ets` 都归脚本管**：`<模块>/src/main/resources/base/media/*.svg` 和 `<模块>/Index.ets` 是同步脚本的产物。要加图标、删图标、改图标，就调同步范围或上游版本再跑脚本，手改会在下次同步时被覆盖。
-- **手写的只有这些**：两个组件（`octicons/src/main/ets/components/OctIcon.ets`、`lucide/src/main/ets/components/LucideIcon.ets`）、引擎与配置（`scripts/lib/icon-sync.mjs`、`scripts/lib/profiles.mjs`）、入口（`scripts/sync-{octicons,lucide}.mjs`）、发布自检（`scripts/check-*.mjs`）。新图标集就新加一个 profile（~60 行），不要复制引擎。
+- **手写的只有这些**：两个组件（`octicons/src/main/ets/components/OctIcon.ets`、`lucide/src/main/ets/components/LucideIcon.ets`）、引擎与配置（`scripts/lib/icon-sync.mjs`、`scripts/lib/profiles.mjs`）、入口（`scripts/sync-{octicons,lucide}.mjs`）、发布自检（`scripts/check-*.mjs`）、文档（`README.md`、本文件、`<模块>/README.md`、`<模块>/CHANGELOG.md`）。新图标集就新加一个 profile（~60 行），不要复制引擎。
+- **模块 README 只有「已同步 vX」那一行归脚本**：`profiles.mjs` 的 `readmeVersionRe` 按正则改版本号，其余内容手写。所以可以放心编辑模块 README 的其它段落，别动那行版本号。
+- **仓库改过名（octicons-harmony → icons-harmony）**：源码与元数据已无旧名，但 `build/`、`.preview/`、`.hvigor/` 下的缓存二进制里可能残留旧地址 / 旧绝对路径。它们都在 gitignore 内且**不进 HAR**，不影响发布；只有怀疑增量构建异常时才考虑清理，且清理前先问主人。
 - **资源名前缀规则（避免撞名）**：HAR 的资源都并进同一个 `app.media.*`，两套图标集必须能共存。octicons 用裸名 + 尺寸后缀（`alert_24`），lucide 统一加 `lucide_` 前缀（`lucide_arrow_down`）。新图标集必须自带前缀。
 - **Octicons 原封同步**：svg 内容与上游 npm 包**逐字节一致**，脚本只把文件名的 `-` 换成 `_`。所以上游 `alert-fill-24.svg` 落盘为 `alert_fill_24.svg`，导出 `AlertFillIcon`。`--sanitize` 是应急开关，本仓不用。
 - **lucide 有两处最小归一化**（其余原样）：① 去掉文件头 HTML 许可注释（许可见 `lucide/LICENSE`）；② `stroke="currentColor"` → `stroke="#000000"`（currentColor 初始值即黑，等价；避免渲染器不认 currentColor 时图标全透明）。颜色统一交给 `LucideIcon` 的 `colorFilter(SRC_IN)`，因为 lucide 是 `fill="none"` 的描边图标，`fillColor` 对它**不生效**。
@@ -103,5 +130,7 @@ ohpm config set publish_id <your-publishId>
 | 发布报 `HttpCode 400 The format of the OHPM package no author url or author email` | `author` 写成了字符串。改成对象 `{ "name": "isfk", "url": "https://github.com/isfk" }` 后**重新构建**（元数据打进 HAR）。`ohpm prepublish` **查不出这一条**，别指望它 |
 | 构建报 `WARN: 'xxx' conflict, first declared` | 同名资源被两方声明。查证时先看资源任务是否 `UP-TO-DATE` —— 缓存会骗人，必须强制重合并（临时改一下某个资源文件内容）才能作数。典型声明方：`entry` 自己的模板占位、旧版依赖 `@isfk/octicons@1.0.2`、测试框 `@ohos/hypium` |
 | HAR 里混入 `.DS_Store` | 它躲在 `octicons/src/main/resources/base/`（被全局 gitignore 挡住所以 git 看不到），删掉后重新构建 |
+| HAR 里 `repository` 还是旧仓库名 | 用的是改名前的构建缓存。确认 `<模块>/oh-package.json5` 已是新地址后按第 5 步重新构建，再拆包核对 `package/oh-package.json5` |
 
-选项的完整清单看 `node scripts/sync-octicons.mjs --help`。
+脚本选项速查见上文「同步脚本速查」，完整清单看 `node scripts/sync-<集>.mjs --help`。
+使用者视角的文档（安装、用法、图标清单）看 `README.md` 与 `<模块>/README.md`——别把流程细节写进那里。
