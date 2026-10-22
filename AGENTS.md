@@ -9,8 +9,8 @@
 
 | 图标集 | 同步脚本 | 模块 | 发版号 |
 | --- | --- | --- | --- |
-| Octicons（填充型，362 个 24px） | `scripts/sync-octicons.mjs` | `octicons/` | `octicons/oh-package.json5` |
-| lucide（描边型，2112 个 24×24） | `scripts/sync-lucide.mjs` | `lucide/` | `lucide/oh-package.json5` |
+| Octicons（填充型，24px） | `scripts/sync-octicons.mjs` | `octicons/` | `octicons/oh-package.json5` |
+| lucide（描边型，24×24） | `scripts/sync-lucide.mjs` | `lucide/` | `lucide/oh-package.json5` |
 
 下面以 octicons 为例写命令，换成 lucide 就把 `sync-octicons` → `sync-lucide`、`octicons` → `lucide`。
 
@@ -37,7 +37,9 @@
    完成标准：svg 数量与常量数相等、新图标 0 缺失、无 macOS 垃圾与 sourcemap、包内版本号是新版。
 7. **发布** — 先自检，**再**发布：
    `node scripts/check-publish-env.mjs`
-   完成标准：退出码 `0`（可免交互发布）。退出码 `2` 表示密码未配置，必须到交互式终端发布（agent 代跑会卡死）；退出码 `1` 表示环境有问题，先修。
+   完成标准：退出码 `0` → 直接 `ohpm publish`（`key_passphrase` 已配置，agent 可免交互发布）。
+   退出码 `2` → 密码未配置，此时**停手**：让主人自己在交互式终端发，agent 硬发会触发 ohpm 的死循环刷日志直到 OOM。
+   退出码 `1` → 环境有问题，先修。
    ```shell
    ohpm publish octicons/build/default/outputs/default/octicons.har
    ```
