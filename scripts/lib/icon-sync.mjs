@@ -354,14 +354,14 @@ async function collectUpstream(opts) {
     version = manifest.version;
     const integrity = manifest.dist && manifest.dist.integrity;
     const tarballUrl = (manifest.dist && manifest.dist.tarball) ||
-      `${REGISTRY}/${P.packageName.replace('/', '%2f')}/-/${P.packageName.split('/')[1]}-${version}.tgz`;
-    const cached = join(opts.cacheDir, `${P.packageName.split('/')[1]}-${version}.tgz`);
+      `${REGISTRY}/${P.packageName.replace('/', '%2f')}/-/${P.packageName.split('/').pop()}-${version}.tgz`;
+    const cached = join(opts.cacheDir, `${P.packageName.split('/').pop()}-${version}.tgz`);
 
     if (opts.flags.has('refresh') || !existsSync(cached)) {
-      if (!opts.flags.has('quiet')) console.log(`⬇ 下载 ${P.packageName}@${version} …`);
+      if (!opts.flags.has('quiet') && !opts.flags.has('json')) console.log(`⬇ 下载 ${P.packageName}@${version} …`);
       const via = await downloadToFile(tarballUrl, cached, opts);
-      if (!opts.flags.has('quiet')) console.log(`  ✓ 完成（${via}）`);
-    } else if (!opts.flags.has('quiet')) {
+      if (!opts.flags.has('quiet') && !opts.flags.has('json')) console.log(`  ✓ 完成（${via}）`);
+    } else if (!opts.flags.has('quiet') && !opts.flags.has('json')) {
       console.log(`⇢ 命中缓存 ${relPath(cached)}（要重新下载加 --refresh）`);
     }
 

@@ -42,8 +42,9 @@
    ohpm publish octicons/build/default/outputs/default/octicons.har
    ```
    「发布」指把 HAR 推到 ohpm registry，与 git `commit`/`push` 是两件事（后者始终由主人手动）。
-   完成标准：命令返回成功即可。**注意：官方要审核，上架很慢** —— 提交后 `latest` 会在相当长时间里仍是上一版，`curl .../@isfk/octicons/<新版本>` 返回 404 也是正常的，**别当成失败去重发**。
-   核实用：`curl -s -o /dev/null -w '%{http_code}\n' https://ohpm.openharmony.cn/ohpm/@isfk/octicons/<版本>`（`200` = 已上架）。
+   完成标准：命令返回成功即可。**注意：官方要审核** —— 提交后 `latest` 可能在一段时间内仍是上一版，**别当成失败去重发**。
+   核实用（**只认包文档**；`/ohpm/<包>/<版本>` 这个端点对本仓所有版本都返回 `404`，不能拿它当判据）：
+   `curl -s https://ohpm.openharmony.cn/ohpm/@isfk/<包> | grep -o '"latest":"[^"]*"'`
    目标版本已在 registry 上时**先改版本号**，ohpm 不能覆盖已发布版本。
 8. **汇报** — 列出改了什么、HAR 的 `shasum -a 256`、以及 commit 信息建议（不提交）。
 
@@ -96,7 +97,7 @@ ohpm config set publish_id <your-publishId>
 | 要重新下载 | `--refresh`（缓存 `.octicons-cache/`，已 gitignore） |
 | 发布鉴权失败 | 依次查 `ohpm config get publish_id` / `key_path` / `key_passphrase`。此版 ohpm（26.0.0.630）**没有 `login` 命令**，鉴权只有 publish_id + 加密私钥签名这一条路 |
 | 发布刷屏 `The content of private key in the key_path error` 然后 V8 崩溃 | 签名拿不到私钥密码（非交互环境无 TTY 可输入），而 ohpm 在签名失败处是**死循环**，会一直刷到 OOM。修：`ohpm config set key_passphrase '<密码>'`，或到交互式终端里发布 |
-| 发布成功后 registry 上查不到新版本 | 官方审核期，上架很慢；`404` + `latest` 停在上一版都属正常。别重发同版本，等审核或看个人中心的「审核中/已上架」 |
+| 发布成功后 registry 上查不到新版本 | 官方审核期，`latest` 会停在上一版；别重发同版本。判断上架**只认包文档**：`curl -s https://ohpm.openharmony.cn/ohpm/@isfk/<包> \| grep -o '"latest":"[^"]*"'` —— `/ohpm/<包>/<版本>` 端点对**所有**版本（含早已上架的）都返回 `404`，不可用作判据 |
 | 发布报 `HttpCode 400 The format of the OHPM package no author url or author email` | `author` 写成了字符串。改成对象 `{ "name": "isfk", "url": "https://github.com/isfk" }` 后**重新构建**（元数据打进 HAR）。`ohpm prepublish` **查不出这一条**，别指望它 |
 | 构建报 `WARN: 'xxx' conflict, first declared` | 同名资源被两方声明。查证时先看资源任务是否 `UP-TO-DATE` —— 缓存会骗人，必须强制重合并（临时改一下某个资源文件内容）才能作数。典型声明方：`entry` 自己的模板占位、旧版依赖 `@isfk/octicons@1.0.2`、测试框 `@ohos/hypium` |
 | HAR 里混入 `.DS_Store` | 它躲在 `octicons/src/main/resources/base/`（被全局 gitignore 挡住所以 git 看不到），删掉后重新构建 |

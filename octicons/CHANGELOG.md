@@ -1,5 +1,9 @@
 # ChangeLog
 
+# v1.0.5 Release
+
+v1.0.5 发布，同步`v19.41.0`版本，增加`4`个图标（共`366`），`codescan`/`graph_bar_horizontal`/`graph_bar_vertical` 跟随上游更新图形
+
 # v1.0.4 Release
 
 v1.0.4 发布，同步`v19.38.0`版本，增加`20`个图标，`logo_github`/`mark_github` 跟随上游更新图形
