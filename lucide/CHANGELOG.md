@@ -1,5 +1,9 @@
 # ChangeLog
 
+# v1.0.3 Release
+
+v1.0.3 发布，同步 lucide `v1.70.0`，增加 `151` 个图标（共 `2322`），`parking`/`currency`/`letter` 等 `25` 个图标跟随上游更新图形
+
 # v1.0.2 Release
 
 v1.0.2 发布，同步 lucide `v1.61.0`，增加 `53` 个图标（共 `2171`），`barrel`/`brain`/`music`/`nut` 等 `15` 个图标跟随上游更新图形
