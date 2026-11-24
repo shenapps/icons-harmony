@@ -88,7 +88,7 @@
 - **本仓约定不改写 fill**：`flag_24`（根节点 `fill="none"` + 路径 `fill="currentColor"`）和 `vscode_24`（`fill="currentColor"`）按官方原样保留，最终颜色由 ArkUI 解析决定；其余 7 个带 `fill-rule` 的图标官方文档确认支持。
 - **删文件先问**：`--prune` 默认关闭，本地多余图标只汇报不删。
 - **`element/` 里不留占位资源**：`octicons/src/main/resources/base/element/` 曾有模板残留（`page_text_font_size` / `page_show`），会和 App、旧版依赖、hypium 撞名，报 `WARN: 'xxx' conflict, first declared` —— HAR 的资源会并进使用方资源表，库侧一个占位都不该有。注意资源数组**不允许为空**（`The array or object node 'float' cannot be empty`），所以只能**整个文件删掉**，不能清空数组。
-- **发布凭据**：`~/.ohpm/.ohpmrc` 里的 `publish_id` + `key_path` + `key_passphrase`，键值都不要打印或写入任何文件/日志。私钥**必须带密码**（PKCS#1 PEM：`ssh-keygen -t rsa -b 4096 -m PEM -f <file>`；无密码的私钥 ohpm 直接报 `NotSupportPrivateKey`）。密码丢了只能重新生成密钥对，并到 ohpm 网站「OHPM公钥」里**新增公钥**（`publish_id` 是账号级的，不用换，见上节）。
+- **发布凭据**：`~/.ohpm/.ohpmrc` 里的 `publish_id` + `key_path` + `key_passphrase` + `crypto_path`，键值都不要打印或写入任何文件/日志。`key_passphrase` 必须是**密文**（`security:01:` 前缀），并靠 `crypto_path` 指向的 crypto 组件解密 —— 明文会被 ohpm 26 直接拒（配置方法见「换发布密钥」末节）。私钥**必须带密码**（PKCS#1 PEM：`ssh-keygen -t rsa -b 4096 -m PEM -f <file>`；无密码的私钥 ohpm 直接报 `NotSupportPrivateKey`）。密码丢了只能重新生成密钥对，并到 ohpm 网站「OHPM公钥」里**新增公钥**（`publish_id` 是账号级的，不用换，见上节）。
 - **发布 ≠ 提交**：`ohpm publish` 是本流程的最后一步，由 agent 执行；`git add`/`commit`/`push`/`tag` 始终由主人手动完成（全局规则 1）。
 - **`author` 保持对象形态**：`<模块>/oh-package.json5` 里 `author` 必须是 `{ "name": ..., "url": ... }`（服务端要求 url 或 email，参照 `@ohos/axios` 只给 url 即可），写成字符串会被 400 拒。改了元数据必须**重新构建** —— 它是打进 HAR 的。
 - `entry/` 是演示 App，不参与发布；它依赖的 `@isfk/octicons` 版本号与本地开发不同步属正常。
@@ -112,7 +112,26 @@ ohpm config set publish_id <your-publishId>
 
 > **`publish_id` 是账号级的，换密钥不用换它**：它在个人中心的个人资料页，按钮叫「**复制发布码**」（点一下入剪贴板），本地就是 `ohpm config get publish_id` 那个值。公钥页面可以登记**多把**公钥（页面会显示「您当前的OHPM公钥数」），所以换钥匙只需新增公钥，`publish_id` 保持不动。
 
-发布时 ohpm 会问 `what is your passphrase of the private key:`；想免交互就 `ohpm config set key_passphrase '<密码>'`（密码明文落在 `~/.ohpm/.ohpmrc`，先 `chmod 600 ~/.ohpm/.ohpmrc`）。
+发布时 ohpm 会问 `what is your passphrase of the private key:`。**ohpm 26 起 `key_passphrase` 只接受密文**（`security:01:<base64>`），并依赖 `crypto_path` 指向的 crypto 组件（含 `fd/` / `ac/` / `ce/` 三个目录）解密；写明文会直接报 `00602020 ... must be encrypted and configured`。免交互发布要先把密文准备好：
+
+```shell
+# 1. 建 crypto 组件（目录留空即可，命令会自动生成密钥材料，权限 700）
+ohpm config encrypt --crypto_path ~/.ohpm/crypto    # 在交互式终端里输一次口令，输出密文
+ohpm config set crypto_path ~/.ohpm/crypto
+ohpm config set key_passphrase 'security:01:...'    # 把上一步的输出整串贴进来
+chmod 600 ~/.ohpm/.ohpmrc
+
+# 2. 之后 ohpm publish 即可免交互
+```
+
+agent 在非交互环境里喂不进 `ohpm config encrypt` 的输入（它的 readline 输出流不是 TTY，输入会被判为空、循环重问），改用 ohpm 自带的加密模块直接产出密文 —— 口令只手输进环境变量，不落盘、不进日志：
+
+```shell
+read -rs OHPM_PW && export OHPM_PW        # 静默输入，不留 shell 历史
+node -e 'const { loadCustomCrypto } = require("<ohpm 安装目录>/lib/core/config-encrypt/crypto"); process.stdout.write(loadCustomCrypto(process.env.HOME + "/.ohpm/crypto").encrypt(process.env.OHPM_PW))' > /tmp/kp.txt
+ohpm config set key_passphrase "$(cat /tmp/kp.txt)" && chmod 600 ~/.ohpm/.ohpmrc
+rm -f /tmp/kp.txt                          # 密文只在本机 crypto 组件下可解密，但对完就删更稳
+```
 
 ## 排错
 
@@ -124,8 +143,11 @@ ohpm config set publish_id <your-publishId>
 | 想快点失败 | `--timeout 10` |
 | 想复现历史版本 | `--from-tarball octicons-x.y.z.tgz` 或 `--from-dir <解压目录>` |
 | 要重新下载 | `--refresh`（缓存 `.octicons-cache/`，已 gitignore） |
-| 发布鉴权失败 | 依次查 `ohpm config get publish_id` / `key_path` / `key_passphrase`。此版 ohpm（26.0.0.630）**没有 `login` 命令**，鉴权只有 publish_id + 加密私钥签名这一条路 |
-| 发布刷屏 `The content of private key in the key_path error` 然后 V8 崩溃 | 签名拿不到私钥密码（非交互环境无 TTY 可输入），而 ohpm 在签名失败处是**死循环**，会一直刷到 OOM。修：`ohpm config set key_passphrase '<密码>'`，或到交互式终端里发布 |
+| 发布鉴权失败 | 依次查 `ohpm config get publish_id` / `key_path` / `key_passphrase` / `crypto_path`。此版 ohpm（26.0.0.630）**没有 `login` 命令**，鉴权只有 publish_id + 加密私钥签名这一条路 |
+| 发布报 `00602020 ... The value of "key_passphrase" must be encrypted and configured` | `key_passphrase` 是明文，或被污染的值（典型：把 `ohpm config encrypt` 的**报错输出**当密文写了进去）。ohpm 26 只认 `security:01:` 密文 + `crypto_path`，按「换发布密钥」末节重做一遍 |
+| 发布报 `00602016 Crypto Path Not Configured` / `00602013 Crypto Path Is Empty` | 缺 `crypto_path`。加密与解密必须用**同一个** crypto 组件目录，换目录等于换密钥、旧密文全部失效 |
+| 用 expect/pty 自动应答 `ohpm publish` 的密码提示，反复重问后 `The input is empty` | 别浪费时间：`questionHideAble` 里 readline 的 output 不是 TTY，终端里回车靠 ICRNL 转 `\n` 才生效，pty 里发 `\r` / `\n` 都收不到。正统做法是配好密文 `key_passphrase` 走免交互 |
+| 发布刷屏 `The content of private key in the key_path error` 然后 V8 崩溃 | 签名拿不到私钥口令（非交互环境无 TTY 可输入），而 ohpm 在签名失败处是**死循环**，会一直刷到 OOM。修：准备密文 `key_passphrase` + `crypto_path` 走免交互，或到交互式终端里发布 |
 | 发布成功后 registry 上查不到新版本 | 官方审核期，`latest` 会停在上一版；别重发同版本。判断上架**只认包文档**：`curl -s https://ohpm.openharmony.cn/ohpm/@isfk/<包> \| grep -o '"latest":"[^"]*"'` —— `/ohpm/<包>/<版本>` 端点对**所有**版本（含早已上架的）都返回 `404`，不可用作判据 |
 | 发布报 `HttpCode 400 The format of the OHPM package no author url or author email` | `author` 写成了字符串。改成对象 `{ "name": "isfk", "url": "https://github.com/isfk" }` 后**重新构建**（元数据打进 HAR）。`ohpm prepublish` **查不出这一条**，别指望它 |
 | 构建报 `WARN: 'xxx' conflict, first declared` | 同名资源被两方声明。查证时先看资源任务是否 `UP-TO-DATE` —— 缓存会骗人，必须强制重合并（临时改一下某个资源文件内容）才能作数。典型声明方：`entry` 自己的模板占位、旧版依赖 `@isfk/octicons@1.0.2`、测试框 `@ohos/hypium` |
