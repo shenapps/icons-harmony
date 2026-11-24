@@ -1,5 +1,9 @@
 # ChangeLog
 
+# v1.0.4 Release
+
+v1.0.4 发布，同步 lucide `v1.79.0`，增加 `94` 个图标（共 `2416`），`badge_help`/`loader_pinwheel`/`spray_can` 等 `38` 个图标跟随上游更新图形
+
 # v1.0.3 Release
 
 v1.0.3 发布，同步 lucide `v1.70.0`，增加 `151` 个图标（共 `2322`），`parking`/`currency`/`letter` 等 `25` 个图标跟随上游更新图形
